@@ -1,4 +1,4 @@
-# Copyright (c) 2017 Kensho Hara
+ # Copyright (c) 2017 Kensho Hara
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -188,9 +188,9 @@ class ResNeXt(nn.Module):
         x = self.layer1(x)
         x = self.layer2(x)
         x = self.layer3(x)
-        x = self.layer4(x)
+        x = self.layer4(x)  # 2048 7 7
 
-        x = self.avgpool(x)
+        x = self.avgpool(x)   # 2048 1 1
 
         x = x.view(x.size(0), -1)
         if self.features_only:

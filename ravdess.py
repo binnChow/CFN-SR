@@ -37,7 +37,7 @@ Repetition (01 = 1st repetition, 02 = 2nd repetition).
 Actor (01 to 24. Odd numbered actors are male, even numbered actors are female).
 """
 video_dict = {
-    "modality": [1, 2, 3],
+    "modality": [1, 2, 3, 4],
     "vocal_channel": [1, 2],
     "emotion": [1, 2, 3, 4, 5, 6, 7, 8],
     "emotional_intensity": [1, 2],
@@ -60,7 +60,7 @@ def parse_gt(video_name):
 class RAVDESSDataset(Dataset):
     """RAVDESS dataset."""
 
-    def __init__(self, actor_folds, modality=('video', 'audio'), transform=None):
+    def __init__(self, actor_folds, modality=('video', 'audio', 'spec'), transform=None):
         """
         :param actor_folds: a list of actor folder paths
         :param modality: list of modalities, default ('video', 'audio')
@@ -118,6 +118,18 @@ class RAVDESSDataset(Dataset):
 
         return {'mfcc': torch.tensor(features)}
 
+    def _read_spec(self, idx, transform):
+        video_path = self.video_list[idx]
+        spec_path = os.path.join(video_path, "audios/spec.jpg")
+
+        img = cv2.imread(spec_path)
+        if transform:
+            img = transform(img)
+            img = img.squeeze_(0)  # remove fake batch dimension
+            feature = torch.tensor(img)
+        else:
+            feature = torch.tensor(img)
+        return {'spec': feature.float()}
     def __getitem__(self, idx):
         gt = parse_gt(os.path.basename(self.video_list[idx]))
         y = torch.LongTensor([gt["emotion"] - 1])  # id starts in 1
@@ -138,5 +150,11 @@ class RAVDESSDataset(Dataset):
                 audio_transform = self.transform
             audio_features = self._read_audio(idx, audio_transform)
             sample.update(audio_features)
-
+        if "spec" in self.modality:
+            if isinstance(self.transform, dict) and "image_transform" in self.transform:
+                image_transform = self.transform["image_transform"]
+            else:
+                image_transform = self.transform
+            spec_feature = self._read_spec(idx, image_transform)
+            sample.update(spec_feature)
         return sample

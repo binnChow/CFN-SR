@@ -25,7 +25,9 @@ import argparse
 from tqdm import tqdm
 import librosa
 from video_utils import VideoProcessor
-
+import pylab
+from torchvision import transforms
+from PIL import Image
 
 def preprocess_video(dataset_folder):
     output_folder = os.path.join(dataset_folder, "preprocessed")
@@ -73,6 +75,32 @@ def mfcc_features(dataset_folder):
         np.save(os.path.join(f, 'audios/featuresMFCC.npy'), mfccs)
 
 
+def melspec_features(dataset_folder):
+    path = os.path.join(dataset_folder, "preprocessed")
+    files = get_audio_paths(path)
+    crop = transforms.Compose([
+                transforms.CenterCrop(288),
+                # transforms.ToTensor(),
+                transforms.Resize(224),
+                # transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+                ])
+    pylab.axis('off') # no axis
+    pylab.axes([0., 0., 1., 1.], frameon=False, xticks=[], yticks=[]) # Remove the white edge
+    for f in tqdm(files):
+        X, sample_rate = librosa.load(os.path.join(f, 'audios/audio.wav'),
+                                      duration=2.45, sr=22050 * 2, offset=0.5)
+
+
+        S = librosa.feature.melspectrogram(y=X, sr=sample_rate)
+        librosa.display.specshow(librosa.power_to_db(S, ref=np.max))
+        pylab.savefig(os.path.join(f, 'audios/spec.jpg'), bbox_inches=None, pad_inches=0)
+        img = Image.open(os.path.join(f, 'audios/spec.jpg'))
+        img = crop(img)
+        img.save(os.path.join(f, 'audios/spec.jpg'))
+        pylab.close()
+
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--datadir', type=str, help='dataset directory', default='RAVDESS')
@@ -83,5 +111,8 @@ if __name__ == "__main__":
 
     print("Generating MFCC features...")
     mfcc_features(args.datadir)
+
+    print("Generating melspec features...")
+    melspec_features('RAVDESS')
 
     print("Preprocessed dataset located in ", os.path.join(args.datadir, 'preprocessed'))

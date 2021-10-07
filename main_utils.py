@@ -55,7 +55,7 @@ def train(get_X, log_interval, model, device, train_loader, optimizer, loss_func
         # distribute data to device
         X, n = get_X(device, sample)
         y = sample["emotion"].to(device).squeeze()
-        output = model(X)
+        output = model(X)  # 加载数据
 
         N_count += n
         optimizer.zero_grad()

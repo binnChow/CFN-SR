@@ -61,10 +61,11 @@ def get_n_params(model):
 # define model input
 def get_X(device, sample):
     images = sample["images"].to(device)
-    images = images.permute(0, 2, 1, 3, 4)  # swap to be (N, C, D, H, W)
+    images = images.permute(0, 2, 1, 3, 4)  # swap to be (N, C, D, H, W) 原始（N D C H W）
     mfcc = sample["mfcc"].to(device)
+    spec = sample["spec"].to(device)
     n = images[0].size(0)
-    return [images, mfcc], n
+    return [images, mfcc, spec], n
 
 
 if __name__ == "__main__":
@@ -156,13 +157,15 @@ if __name__ == "__main__":
             sample_duration=30
         )
         audio_model = MFCCNet()
+        spec_model = SPECNet()
 
-        if args.train:  # load unimodal model weights
+        if args.train:  # load unimodal model weights 加载预训练模型
             video_model_path = os.path.join(args.checkpointdir,
                                             "resnext50/fold_{}_resnext50_best.pth".format(i + 1))
             video_model_checkpoint = torch.load(video_model_path) if use_cuda else \
                 torch.load(video_model_path, map_location=torch.device('cpu'))
             video_model.load_state_dict(video_model_checkpoint)
+
             audio_model_path = os.path.join(args.checkpointdir,
                                             "mfccNet/fold_{}_mfccNet_best.pth".format(i + 1))
             audio_model_checkpoint = torch.load(audio_model_path) if use_cuda else \
@@ -177,6 +180,10 @@ if __name__ == "__main__":
             "audio": {
                 "model": audio_model,
                 "id": 1
+            },
+            "spec": {
+                "model": spec_model,
+                "id": 2
             }
         }
         multimodal_model = MSAFNet(model_param)

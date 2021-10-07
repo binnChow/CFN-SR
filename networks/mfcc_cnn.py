@@ -37,7 +37,7 @@ class MFCCNet(nn.Module):
         self.maxpool = nn.MaxPool1d(kernel_size=8)
         self.bn2 = nn.BatchNorm1d(32)
         self.dropout1 = nn.Dropout(p=0.2)
-        self.conv3 = nn.Conv1d(in_channels=32, out_channels=64, kernel_size=5, stride=1, padding=2)
+        self.conv3 = nn.Conv1d(in_channels=32, out_channels=64, kernel_size=5, stride=1, padding=2)  # 64  26
         self.bn3 = nn.BatchNorm1d(64)
         self.flatten = Flatten()
         self.dropout2 = nn.Dropout(p=0.4)
