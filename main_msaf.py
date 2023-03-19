@@ -21,6 +21,8 @@
 import glob
 import os
 
+
+
 os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
 import datetime
@@ -35,6 +37,7 @@ from networks import *
 from ravdess import RAVDESSDataset
 from main_utils import train, validation
 import warnings
+
 
 warnings.filterwarnings('ignore')
 
@@ -80,7 +83,7 @@ if __name__ == "__main__":
     parser.add_argument('--no_verbose', action='store_true', default=False, help='turn off verbose for training')
     parser.add_argument('--log_interval', type=int, help='interval for displaying training info if verbose', default=10)
     parser.add_argument('--no_save', action='store_true', default=False, help='set to not save model weights')
-    parser.add_argument('--train', action='store_true', default=False, help='training')
+    parser.add_argument('--train', action='store_true', default=True, help='training')
 
     args = parser.parse_args()
 
@@ -157,7 +160,7 @@ if __name__ == "__main__":
             sample_duration=30
         )
         audio_model = MFCCNet()
-        spec_model = SPECNet()
+        spec_model = SER_AlexNet(num_classes=8, in_ch=3, pretrained=True)
 
         if args.train:  # load unimodal model weights 加载预训练模型
             video_model_path = os.path.join(args.checkpointdir,
@@ -166,11 +169,11 @@ if __name__ == "__main__":
                 torch.load(video_model_path, map_location=torch.device('cpu'))
             video_model.load_state_dict(video_model_checkpoint)
 
-            audio_model_path = os.path.join(args.checkpointdir,
-                                            "mfccNet/fold_{}_mfccNet_best.pth".format(i + 1))
-            audio_model_checkpoint = torch.load(audio_model_path) if use_cuda else \
-                torch.load(audio_model_path, map_location=torch.device('cpu'))
-            audio_model.load_state_dict(audio_model_checkpoint)
+            # audio_model_path = os.path.join(args.checkpointdir,
+            #                                 "mfccNet/fold_{}_mfccNet_best.pth".format(i + 1))
+            # audio_model_checkpoint = torch.load(audio_model_path) if use_cuda else \
+            #     torch.load(audio_model_path, map_location=torch.device('cpu'))
+            # audio_model.load_state_dict(audio_model_checkpoint)
 
         model_param = {
             "video": {
