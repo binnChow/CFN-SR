@@ -28,7 +28,8 @@ from video_utils import VideoProcessor
 import pylab
 from torchvision import transforms
 from PIL import Image
-
+import librosa.display
+# 对原始视频提取音频及图片
 def preprocess_video(dataset_folder):
     output_folder = os.path.join(dataset_folder, "preprocessed")
     landmark_folder = os.path.join(dataset_folder, "landmarks")
@@ -41,7 +42,7 @@ def preprocess_video(dataset_folder):
             os.makedirs(output_actor_folder)
 
         for each_video in glob.glob(os.path.join(each_actor, "*.mp4")):
-            name = each_video.split("/")[-1].split("-")[0]
+            name = each_video.split("\\")[-1].split("-")[0]
             if int(name) == 2:
                 continue
             video_name = os.path.basename(each_video)
@@ -53,7 +54,7 @@ def preprocess_video(dataset_folder):
                                              output_folder=frames_folder, extract_audio=True)
             video_processor.preprocess(seq_len=30, target_resolution=(224, 224))
 
-
+# 获取音频的路径
 def get_audio_paths(path):
     audio_files = []
     actors = os.listdir(path)
@@ -63,7 +64,7 @@ def get_audio_paths(path):
         audio_files += [os.path.join(path_to_folders, p) for p in folders]
     return audio_files
 
-
+# 提取mfcc特征
 def mfcc_features(dataset_folder):
     path = os.path.join(dataset_folder, "preprocessed")
     files = get_audio_paths(path)

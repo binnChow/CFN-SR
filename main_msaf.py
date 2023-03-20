@@ -65,7 +65,8 @@ def get_n_params(model):
 def get_X(device, sample):
     images = sample["images"].to(device)
     images = images.permute(0, 2, 1, 3, 4)  # swap to be (N, C, D, H, W) 原始（N D C H W）
-    mfcc = sample["mfcc"].to(device)
+    mfcc = sample["mfcc"].to(device) # [16, 13, 212]
+    mfcc = mfcc.permute(0,2,1)
     spec = sample["spec"].to(device)
     n = images[0].size(0)
     return [images, mfcc, spec], n
@@ -76,14 +77,14 @@ if __name__ == "__main__":
     parser.add_argument('--datadir', type=str, help='dataset directory', default='RAVDESS/preprocessed')
     parser.add_argument('--k_fold', type=int, help='k for k fold cross validation', default=5)
     parser.add_argument('--lr', type=float, help='learning rate', default=0.001)
-    parser.add_argument('--batch_size', type=int, help='batch size', default=16)
+    parser.add_argument('--batch_size', type=int, help='batch size', default=28)
     parser.add_argument('--num_workers', type=int, help='num workers', default=4)
     parser.add_argument('--epochs', type=int, help='train epochs', default=70)
     parser.add_argument('--checkpointdir', type=str, help='directory to save/read weights', default='checkpoints')
     parser.add_argument('--no_verbose', action='store_true', default=False, help='turn off verbose for training')
     parser.add_argument('--log_interval', type=int, help='interval for displaying training info if verbose', default=10)
     parser.add_argument('--no_save', action='store_true', default=False, help='set to not save model weights')
-    parser.add_argument('--train', action='store_true', default=True, help='training')
+    parser.add_argument('--train', action='store_true', default=False, help='training')
 
     args = parser.parse_args()
 
@@ -106,14 +107,14 @@ if __name__ == "__main__":
             transforms.RandomHorizontalFlip(),
             transforms.ToTensor(),
             transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])]),
-        "audio_transform": None
+        "audio_transform": False
     }
 
     val_transform = {
         "image_transform": transforms.Compose([
             transforms.ToTensor(),
             transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])]),
-        "audio_transform": None
+        "audio_transform": False
     }
 
     # loss function
@@ -127,6 +128,7 @@ if __name__ == "__main__":
     s = int(len(all_folder) / args.k_fold)  # size of a fold
     top_scores = []
 
+# 5折交叉验算
     for i in range(args.k_fold):
         print("Fold " + str(i + 1))
 
@@ -159,8 +161,9 @@ if __name__ == "__main__":
             sample_size=224,
             sample_duration=30
         )
-        audio_model = MFCCNet()
+        audio_model = None
         spec_model = SER_AlexNet(num_classes=8, in_ch=3, pretrained=True)
+
 
         if args.train:  # load unimodal model weights 加载预训练模型
             video_model_path = os.path.join(args.checkpointdir,

@@ -40,7 +40,7 @@ def conv3x3x3(in_planes, out_planes, stride=1):
         padding=1,
         bias=False)
 
-
+    # 降采样
 def downsample_basic_block(x, planes, stride):
     out = F.avg_pool3d(x, kernel_size=1, stride=stride)
     zero_pads = torch.Tensor(
@@ -147,6 +147,9 @@ class ResNeXt(nn.Module):
                 m.weight.data.fill_(1)
                 m.bias.data.zero_()
 
+    # block：基础块的类型，是BasicBlock，还是Bottleneck
+    # planes：当前块的输入输入通道数
+    # blocks：块的数目
     def _make_layer(self,
                     block,
                     planes,
@@ -155,6 +158,8 @@ class ResNeXt(nn.Module):
                     cardinality,
                     stride=1):
         downsample = None
+        # downSample的作用于在残差连接时 将输入的图像的通道数变成和卷积操作的尺寸一致
+        # 根据ResNet的结构特点，一般只在每层开始时进行判断
         if stride != 1 or self.inplanes != planes * block.expansion:
             if shortcut_type == 'A':
                 downsample = partial(
@@ -179,6 +184,7 @@ class ResNeXt(nn.Module):
 
         return nn.Sequential(*layers)
 
+# 视频处理rexNext网络
     def forward(self, x):
         x = self.conv1(x)
         x = self.bn1(x)

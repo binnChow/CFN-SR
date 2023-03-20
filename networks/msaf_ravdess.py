@@ -5,10 +5,10 @@ import torch.nn.functional as F
 from typing import List
 from networks.spec_cnn import SER_AlexNet
 from modules.transformer import TransformerEncoder
-
+import torch.nn.functional as F
 import sys
 sys.path.append('..')
-from MSAF import MSAF
+# from MSAF import MSAF
 
 # class CrossModalAttentionLayer(nn.Module):
 #     # y attends x
@@ -94,29 +94,30 @@ class MSAFNet(nn.Module):
         # ])
         # self.num_msaf = len(self.msaf)
         #
-        # self.fc = nn.Linear(3712, 8)
+        self.fc = nn.Linear(384, 8)
 
         self.conv1 = nn.Conv2d(in_channels=13, out_channels=32, kernel_size=(1, 9), stride=1, padding=2)
         self.bn1 = nn.BatchNorm1d(32)
         self.conv2 = nn.Conv2d(in_channels=13, out_channels=32, kernel_size=(11, 1), stride=1, padding=2)
         self.relu = nn.ReLU()
 
-# mfcc
+        # mfcc
         self.gru_mfcc = nn.GRU(input_size=13, hidden_size=256, num_layers=2, batch_first=True, dropout=0.5,
-                                 bidirectional=True)
+                               bidirectional=True)
         self.mfcc_dropout = nn.Dropout(p=0.1)
         self.mfcc_linear = nn.Linear(108544, 128)
 
-# spec
+        # spec
         self.alexnet = SER_AlexNet(num_classes=8, in_ch=3, pretrained=True)
         self.spec_dropout = nn.Dropout(p=0.1)
-        self.spec_linear = nn.Linear(108544, 128)
+        self.spec_linear = nn.Linear(9216, 128)
 
-#video
+        # video
         self.video_dropout = nn.Dropout(p=0.1)
         self.video_linear = nn.Linear(2048, 128)
 
         if "video" in model_param:
+            print("1111")
             video_model = model_param["video"]["model"]  # 相当于  video_model = self.resnet50(audio_spec)
             # video model layers
             video_model = nn.Sequential(
@@ -131,52 +132,55 @@ class MSAFNet(nn.Module):
                 Flatten(),  # 8
                 # video_model.fc  # 9
             )
+            self.video_model = video_model
             # self.video_model_blocks = self.make_blocks(video_model, self.msaf_locations["video"])
             self.video_id = model_param["video"]["id"]
 
         if "audio" in model_param:
             audio_model = model_param["audio"]["model"]
             # audio model layers
-            audio_model = nn.Sequential(
-                audio_model.conv1,  # 0
-                nn.ReLU(inplace=True),  # 1
-                audio_model.bn1,  # 2
-                audio_model.conv2,  # 3
-                nn.ReLU(inplace=True),  # 4
-                audio_model.maxpool,  # 5
-                audio_model.bn2,  # 6
-                audio_model.dropout1,  # 7
-                audio_model.conv3,  # 8   64 24
-                nn.ReLU(inplace=True),  # 9
-                audio_model.bn3,  # 10
-                audio_model.flatten,  # 11
-                audio_model.dropout2,  # 12  1664
-                # audio_model.fc1  # 13
-            )
+            # audio_model = nn.Sequential(
+            #     audio_model.conv1,  # 0
+            #     nn.ReLU(inplace=True),  # 1
+            #     audio_model.bn1,  # 2
+            #     audio_model.conv2,  # 3
+            #     nn.ReLU(inplace=True),  # 4
+            #     audio_model.maxpool,  # 5
+            #     audio_model.bn2,  # 6
+            #     audio_model.dropout1,  # 7
+            #     audio_model.conv3,  # 8   64 24
+            #     nn.ReLU(inplace=True),  # 9
+            #     audio_model.bn3,  # 10
+            #     audio_model.flatten,  # 11
+            #     audio_model.dropout2,  # 12  1664
+            #     # audio_model.fc1  # 13
+            # )
             # self.audio_model_blocks = self.make_blocks(audio_model, self.msaf_locations["audio"])
+            self.audio_model = audio_model
             self.audio_id = model_param["audio"]["id"]
 
 
         if "spec" in model_param:
             spec_model = model_param["spec"]["model"]
             # spec model layers
-            spec_model = nn.Sequential(
-                spec_model.conv1,  # 0
-                nn.ReLU(inplace=True),  # 1
-                spec_model.bn1,  # 2
-                spec_model.conv2,  # 3
-                nn.ReLU(inplace=True),  # 4
-                spec_model.maxpool,  # 5
-                spec_model.bn2,  # 6
-                spec_model.dropout1,  # 7
-                spec_model.conv3,  # 8   64 24
-                nn.ReLU(inplace=True),  # 9
-                spec_model.bn3,  # 10
-                spec_model.flatten,  # 11
-                spec_model.dropout2,  # 12  1664
-                # audio_model.fc1  # 13
-            )
+            # spec_model = nn.Sequential(
+            #     spec_model.conv1,  # 0
+            #     nn.ReLU(inplace=True),  # 1
+            #     spec_model.bn1,  # 2
+            #     spec_model.conv2,  # 3
+            #     nn.ReLU(inplace=True),  # 4
+            #     spec_model.maxpool,  # 5
+            #     spec_model.bn2,  # 6
+            #     spec_model.dropout1,  # 7
+            #     spec_model.conv3,  # 8   64 24
+            #     nn.ReLU(inplace=True),  # 9
+            #     spec_model.bn3,  # 10
+            #     spec_model.flatten,  # 11
+            #     spec_model.dropout2,  # 12  1664
+            #     # audio_model.fc1  # 13
+            # )
             # self.audio_model_blocks = self.make_blocks(audio_model, self.msaf_locations["audio"])
+            self.spec_model = spec_model
             self.spec_id = model_param["spec"]["id"]
     def forward(self, x):
         # for i in range(self.num_msaf + 1):
@@ -187,27 +191,31 @@ class MSAFNet(nn.Module):
         # mfcc = torch.add(mfcc_conv1, mfcc_conv2)
 
         if hasattr(self, "video_id"):
-            video = self.video_model(x[self.video_id])
+            video = self.video_model(x[self.video_id])  # [16, 3, 30, 224, 224]
             video = self.video_dropout(video)
             video = self.video_linear(video)
-            video = self.relu(video, inplace=False)  # [batch, 128]
+            video = F.relu(video, inplace=False)  # [16, 128]
+
             x[self.video_id] = video
 
         if hasattr(self, "audio_id"):
-            mfcc = nn.normalize(x[self.video_id], p=2, dim=2)
-            mfcc = self.gru_mfcc(mfcc)  # [212, 512]
-            mfcc = torch.flatten(mfcc, 1)
-            mfcc = self.mfcc_dropout(mfcc)
+            mfcc = F.normalize(x[self.audio_id], p=2, dim=1)#[16,13,212]
+            mfcc, _ = self.gru_mfcc(mfcc)  # [16, 212, 512]
+            mfcc = torch.flatten(mfcc,1) # ([16, 108544])
+            mfcc = self.mfcc_dropout(mfcc)# ([16, 108544])
             mfcc = self.mfcc_linear(mfcc)
-            mfcc = self.relu(mfcc, inplace=False)  # [batch, 128]
+            mfcc = F.relu(mfcc, inplace=False)  # [batch, 128]
+
             x[self.audio_id] = mfcc
 
         if hasattr(self, "spec_id"):
-            spec = self.alexnet(x[self.spec_id])
-            spec = spec.reshape(spec.shape[0], spec.shape[1], -1)  # [256, 36]
+
+            spec, _ = self.alexnet(x[self.spec_id]) # [16, 256, 6, 6]
+            spec = spec.reshape(spec.shape[0], spec.shape[1], -1)  # [16, 256, 36]
             spec = torch.flatten(spec, 1)  # [batch, 9216]
             spec = self.spec_dropout(spec)  # [batch, 9216]
-            spec = self.relu(self.spec_linear(spec), inplace=False)  # [batch, 128]
+            spec = F.relu(self.spec_linear(spec), inplace=False)  # [batch, 128]
+
             x[self.spec_id] = spec
 
         # if hasattr(self, "video_id"):
@@ -216,19 +224,19 @@ class MSAFNet(nn.Module):
         #     x[self.audio_id] = self.audio_model(x[self.audio_id])
         # if hasattr(self, "spec_id"):
         #     x[self.spec_id] = self.sepc_model(x[self.sepc_id])
-            # if i < self.num_msaf:
-            #     x = self.msaf[i](x[0], x[1])
-            #     # if i == 0:
-            #     #     x = self.msaf[i](x)
-            #     # else:
-            #     #     x = self.msaf[i](x[0], x[1])
-            #     # x = self.msaf[i](x)
+        # if i < self.num_msaf:
+        #     x = self.msaf[i](x[0], x[1])
+        #     # if i == 0:
+        #     #     x = self.msaf[i](x)
+        #     # else:
+        #     #     x = self.msaf[i](x[0], x[1])
+        #     # x = self.msaf[i](x)
         res = torch.cat(x, dim=1)
         res = self.fc(res)
-                
+
         return res
 
     # split model into blocks for msafs. Model in Sequential. recipe in list
     # def make_blocks(self, model, recipe):
     #     blocks = [nn.Sequential(*(list(model.children())[i:j])) for i, j in zip([0] + recipe, recipe + [None])]
-    #     return nn.ModuleList(blocks)
+    #     return nn.ModuleList(block s)

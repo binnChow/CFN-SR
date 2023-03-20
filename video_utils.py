@@ -40,6 +40,7 @@ class VideoProcessor(object):
         if not os.path.exists(self.frames_folder):
             os.mkdir(self.frames_folder)
 
+# seq_len 为视频提取帧数，图片设置为（224 ， 224）大小
     def preprocess(self, seq_len=30, target_resolution=(224, 224)):
         """
         extract frames and audio from the video,
@@ -51,7 +52,7 @@ class VideoProcessor(object):
         """
         video = VideoFileClip(self.video_path, audio=self.extract_audio, target_resolution=target_resolution)
         if self.extract_audio:
-            video.audio.write_audiofile(os.path.join(self.audios_folder, "audio.wav"))
+            video.audio.write_audiofile(os.path.join(self.audios_folder, "audio.wav"))#提取音频文件
 
         times = list(np.arange(0, video.duration, video.duration/seq_len))
         if len(times) < seq_len:

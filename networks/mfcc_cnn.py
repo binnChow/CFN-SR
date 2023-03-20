@@ -27,6 +27,7 @@ class Flatten(nn.Module):
         return input.view(input.size(0), -1)
 
 
+# 单通道的卷积网络
 class MFCCNet(nn.Module):
     def __init__(self, features_only=False):
         super(MFCCNet, self).__init__()

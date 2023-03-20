@@ -28,20 +28,30 @@ from sklearn.metrics import confusion_matrix
 # y_pred: np array of probablities. (batch_size * cls_num) (output of softmax)
 # y_true: batch_size * 1.
 # return: list of acc given list of k
+
+# 计算top_k https://zhuanlan.zhihu.com/p/340760336?ivk_sa=1024320u
 def accuracy_topk(output, target, topk=(1,)):
     """Computes the precision@k for the specified values of k"""
+    print(output,"output")
+    print(target, "target")
     maxk = max(topk)
+    print(maxk, "原始 maxk")
     batch_size = target.size(0)
-
+    print(batch_size,"batch_size")
     _, pred = output.topk(maxk, 1, True, True)
+    print(pred,"原始")
+    # 转置
     pred = pred.t()
+    print(pred, "t")
+    # 两两比较两个tensor是否相等 .view相当于把tensor转换为一维 .expand_as相当于 tensor_1.expand_as(tensor_2) ：把tensor_1扩展成和tensor_2一样的形状
     correct = pred.eq(target.view(1, -1).expand_as(pred))
+    print(correct, "correct")
     res = []
     for k in topk:
         correct_k = correct[:k].reshape(-1).float().sum(0, keepdim=True)
         res.append(correct_k.mul_(100.0 / batch_size))
     return res
-
+    print(res, "res")
 
 def train(get_X, log_interval, model, device, train_loader, optimizer, loss_func, metric_topk, epoch):
     # set model as training mode
@@ -80,7 +90,7 @@ def train(get_X, log_interval, model, device, train_loader, optimizer, loss_func
     return losses, scores
 
 
-def validation(get_X, model, device, loss_func, val_loader, metric_topk, show_cm=False):
+def validation(get_X, model, device, loss_func, val_loader, metric_topk, show_cm=True):
     # set model as testing mode
     model.eval()
 
@@ -92,19 +102,24 @@ def validation(get_X, model, device, loss_func, val_loader, metric_topk, show_cm
         for sample in val_loader:
             # distribute data to device
             X, _ = get_X(device, sample)
+            # 真实标签
             y = sample["emotion"].to(device).squeeze()
+            # 预测标签
             output = model(X)
 
             loss = loss_func(output, y)
             test_loss.append(loss.item())  # sum up batch loss
 
             # collect all y and y_pred in all batches
+        #真实标签数组
             all_y.extend(y)
+        #预测标签数组
             all_y_pred.extend(output)
 
     test_loss = np.mean(test_loss)
 
     # compute accuracy
+    # 把多个2维的张量凑成一个3维的张量；多个3维的凑成一个4维的张量…以此类推，也就是在增加新的维度进行堆叠。
     all_y = torch.stack(all_y, dim=0)
     all_y_pred = torch.stack(all_y_pred, dim=0)
     test_score = [float(t_acc) for t_acc in accuracy_topk(all_y_pred, all_y, topk=metric_topk)]
